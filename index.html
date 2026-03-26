@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estimated Pay Date Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      color: #1a1a18;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+      color: #1a1a18;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 0.5px solid rgba(0,0,0,0.15);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+
+    label {
+      font-size: 13px;
+      color: #666663;
+    }
+
+    select, input[type="date"] {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 14px;
+      border: 0.5px solid rgba(0,0,0,0.25);
+      border-radius: 8px;
+      background: #fff;
+      color: #1a1a18;
+      outline: none;
+      font-family: inherit;
+    }
+
+    select:focus, input[type="date"]:focus {
+      border-color: rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+
+    hr {
+      border: none;
+      border-top: 0.5px solid rgba(0,0,0,0.1);
+      margin: 1rem 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .result-card {
+      background: #f5f5f3;
+      border-radius: 8px;
+      padding: 0.875rem 0.75rem;
+      text-align: center;
+    }
+
+    .result-lbl {
+      font-size: 11px;
+      color: #888780;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .result-num {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1a1a18;
+      margin-top: 4px;
+    }
+
+    .badge-wrap { margin-top: 1rem; text-align: center; }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      padding: 3px 12px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .badge-green { background: #eaf3de; color: #3b6d11; }
+    .badge-amber { background: #faeeda; color: #854f0b; }
+    .badge-red   { background: #fcebeb; color: #a32d2d; }
+
+    @media (max-width: 400px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Estimated pay date calculator</h1>
+    <div class="card">
+      <div class="grid-2">
+        <div class="field">
+          <label for="company">Company</label>
+          <select id="company">
+            <option value="" disabled selected>Select company</option>
+            <option value="Quartz">Quartz</option>
+            <option value="GCP">GCP</option>
+            <option value="Ceramics">Ceramics</option>
+            <option value="CT">CT</option>
+            <option value="SAGE">SAGE</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="terms">Payment terms</label>
+          <select id="terms">
+            <option value="" disabled selected>Select terms</option>
+            <option value="Net 30">Net 30</option>
+            <option value="Net 45">Net 45</option>
+            <option value="Net 60">Net 60</option>
+            <option value="Net 90">Net 90</option>
+            <option value="Prox 1">Prox 1</option>
+            <option value="Prox 1.5">Prox 1.5</option>
+            <option value="Prox 2">Prox 2</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="invoiceDate">Invoice date</label>
+        <input type="date" id="invoiceDate" />
+      </div>
+
+      <hr />
+
+      <div class="grid-3">
+        <div class="result-card">
+          <div class="result-lbl">Due date</div>
+          <div class="result-num" id="dueDate">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-lbl">Est. pay date</div>
+          <div class="result-num" id="payDate">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-lbl">Days until payment</div>
+          <div class="result-num" id="daysOut">—</div>
+        </div>
+      </div>
+
+      <div class="badge-wrap" id="statusBadge"></div>
+    </div>
+  </div>
+
+  <script>
+    const companyPayday = { Quartz: 1, GCP: 2, Ceramics: 3, CT: 4, SAGE: 5 };
+
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+
+    function nextWeekdayOnOrAfter(date, dow) {
+      const d = new Date(date);
+      const diff = (dow - d.getDay() + 7) % 7;
+      d.setDate(d.getDate() + diff);
+      return d;
+    }
+
+    function prevWeekday(date, dow) {
+      const d = new Date(date);
+      let diff = d.getDay() - dow;
+      if (diff <= 0) diff += 7;
+      d.setDate(d.getDate() - diff);
+      return d;
+    }
+
+    function fifthOfMonth(date, offset) {
+      return new Date(date.getFullYear(), date.getMonth() + offset, 5);
+    }
+
+    function proxDueDate(invoiceDate, proxType) {
+      const day = invoiceDate.getDate();
+      if (proxType === 'Prox 1')   return day <= 15 ? fifthOfMonth(invoiceDate, 1) : fifthOfMonth(invoiceDate, 2);
+      if (proxType === 'Prox 1.5') return day <= 5  ? fifthOfMonth(invoiceDate, 1) : fifthOfMonth(invoiceDate, 2);
+      return day <= 25 ? fifthOfMonth(invoiceDate, 2) : fifthOfMonth(invoiceDate, 3);
+    }
+
+    function getProxPayDate(dueDate, paydayDow) {
+      const year = dueDate.getFullYear();
+      const month = dueDate.getMonth();
+      for (let day = 1; day <= 5; day++) {
+        const d = new Date(year, month, day);
+        if (d.getDay() === paydayDow) return d;
+      }
+      return new Date(year, month, 5);
+    }
+
+    function getNetPayDate(dueDate, paydayDow) {
+      let candidate = nextWeekdayOnOrAfter(dueDate, paydayDow);
+      const diff = Math.round((candidate - dueDate) / 86400000);
+      if (diff > 0 && diff <= 6) candidate = prevWeekday(candidate, paydayDow);
+      return candidate;
+    }
+
+    function fmtDate(d) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function calculate() {
+      const company = document.getElementById('company').value;
+      const terms = document.getElementById('terms').value;
+      const invoiceDateStr = document.getElementById('invoiceDate').value;
+      if (!company || !terms || !invoiceDateStr) return;
+
+      const invoiceDate = new Date(invoiceDateStr + 'T12:00:00');
+      const isProx = terms.startsWith('Prox');
+      let dueDate, payDate;
+
+      if (!isProx) {
+        const days = parseInt(terms.split(' ')[1]);
+        dueDate = addDays(invoiceDate, days);
+        payDate = getNetPayDate(dueDate, companyPayday[company]);
+      } else {
+        dueDate = proxDueDate(invoiceDate, terms);
+        payDate = getProxPayDate(dueDate, companyPayday[company]);
+      }
+
+      const today = new Date(); today.setHours(12, 0, 0, 0);
+      const daysUntil = Math.round((payDate - today) / 86400000);
+
+      document.getElementById('dueDate').textContent = fmtDate(dueDate);
+      document.getElementById('payDate').textContent = fmtDate(payDate);
+      document.getElementById('daysOut').textContent = daysUntil > 0 ? daysUntil : 0;
+
+      const badge = document.getElementById('statusBadge');
+      if (daysUntil < 0) {
+        badge.innerHTML = '<span class="badge badge-red">Overdue</span>';
+      } else if (daysUntil <= 7) {
+        badge.innerHTML = '<span class="badge badge-amber">Payment due soon</span>';
+      } else {
+        badge.innerHTML = '<span class="badge badge-green">On track</span>';
+      }
+    }
+
+    document.getElementById('company').addEventListener('change', calculate);
+    document.getElementById('terms').addEventListener('change', calculate);
+    document.getElementById('invoiceDate').addEventListener('change', calculate);
+  </script>
+</body>
+</html>
